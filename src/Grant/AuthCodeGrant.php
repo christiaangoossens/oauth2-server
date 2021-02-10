@@ -12,6 +12,7 @@ namespace League\OAuth2\Server\Grant;
 use DateInterval;
 use DateTime;
 use Exception;
+use League\OAuth2\Server\Entities\AuthCodeEntityInterface;
 use League\OAuth2\Server\Entities\ClientEntityInterface;
 use League\OAuth2\Server\Entities\UserEntityInterface;
 use League\OAuth2\Server\Exception\OAuthServerException;
@@ -145,7 +146,10 @@ class AuthCodeGrant extends AbstractAuthorizeGrant
             }
         }
 
-        // Issue and persist new access token
+        // Handle extra authorization code parameters
+        $this->handleExtraAuthCodeParams($authCodePayload);
+
+        // Issue and persist access + refresh tokens
         $accessToken = $this->issueAccessToken($accessTokenTTL, $client, $authCodePayload->user_id, $scopes);
         $this->getEmitter()->emit(new RequestEvent(RequestEvent::ACCESS_TOKEN_ISSUED, $request));
         $responseType->setAccessToken($accessToken);
@@ -344,6 +348,8 @@ class AuthCodeGrant extends AbstractAuthorizeGrant
                 'code_challenge_method' => $authorizationRequest->getCodeChallengeMethod(),
             ];
 
+            $payload = array_merge($this->getExtraAuthCodeParams($authorizationRequest, $authCode), $payload);
+
             $response = new RedirectResponse();
             $response->setRedirectUri(
                 $this->makeRedirectUri(
@@ -386,5 +392,28 @@ class AuthCodeGrant extends AbstractAuthorizeGrant
         return \is_array($authorizationRequest->getClient()->getRedirectUri())
                 ? $authorizationRequest->getClient()->getRedirectUri()[0]
                 : $authorizationRequest->getClient()->getRedirectUri();
+    }
+
+    /*
+     * Add custom fields to your authorization code to save some data from the previous (authorize) state
+     * for when you are issuing the token at the token endpoint
+     *
+     * @param AuthorizationRequest    $authorizationRequest
+     * @param AuthCodeEntityInterface $authCode
+     *
+     * @return array
+     */
+    protected function getExtraAuthCodeParams(AuthorizationRequest $authorizationRequest, AuthCodeEntityInterface $authCode)
+    {
+        return [];
+    }
+
+    /**
+     * Handle the extra params specified in getExtraAuthCodeParams
+     *
+     * @param object $authCodePayload
+     */
+    protected function handleExtraAuthCodeParams($authCodePayload)
+    {
     }
 }
